@@ -1,0 +1,3 @@
+ID,label,name,hourinterval
+401,1 Hour,Hour1,1
+424,24 Hour,Hour24,24

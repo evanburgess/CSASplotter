@@ -1,0 +1,3 @@
+1 Hour (Flag = 101)
+3 Hour (Flag = 103)
+24 Hour (Flag = 124)

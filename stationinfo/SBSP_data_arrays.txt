@@ -1,0 +1,4 @@
+1 Hour (Flag = 201)
+3 Hour (Flag = 203)
+Solar Noon (Flag = 212)
+24 Hour (Flag = 224)
