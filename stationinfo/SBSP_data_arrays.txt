@@ -1,4 +1,5 @@
-1 Hour (Flag = 201)
-3 Hour (Flag = 203)
-Solar Noon (Flag = 212)
-24 Hour (Flag = 224)
+ID,label,name,intervalminutes
+201,1 Hour,Hour1,60
+203,3 Hour,Hour3,180
+212,Solar Noon,Solar,2
+224,24 Hour,Daily,1440

@@ -1,3 +1,4 @@
-1 Hour (Flag = 101)
-3 Hour (Flag = 103)
-24 Hour (Flag = 124)
+ID,label,name,intervalminutes
+101,1 Hour,Hour1,60
+103,3 Hour,Hour3,180
+124,24 Hour,Daily,1440
