@@ -16,7 +16,7 @@ import numpy as np
 engine = create_engine('postgresql://postgres:%s@localhost:5432/csas' % getenv(
                        'CSAS_DB_PASSWORD'))
 
-# DIRECTORY HOLDING THE STATION INFO DATA FILES 
+# DIRECTORY HOLDING THE STATION INFO DATA FILES
 stationinfodir = '/Users/airsci/Documents/CSASPlotter/stationinfo'
 
 # DIRECTORY HOLD THE DAT FILES
@@ -84,9 +84,9 @@ def hold_til_(hold_til='min', accuracy_secs=1):
 
 
 def get_header_info(station):
-    '''This grabs the header info for a specific station and 
+    '''This grabs the header info for a specific station and
     returns it as a pandas dataframe'''
-    
+
     fields = pd.read_excel(stationxlsfile, station,
                            skiprows=0, header=1, index_col=1)
     fields.index = fields.index.str.lower()
@@ -99,7 +99,7 @@ def get_data_arrays(station):
     a second label without spaces and no number to start the label
     '''
     filename = "%s_data_arrays.txt" % station
-    filepath = join(wkdir, 'stationinfo', filename)
+    filepath = join(stationinfodir, filename)
 
     data_arrs = pd.read_csv(filepath,index_col='ID')
     return data_arrs
@@ -129,7 +129,7 @@ the dat file is now contained in a pandas dataframe at dat.rawfile'''
             _, hours, mins, _ = (re.split('(\d?\d)(\d\d)', time))
             return dtm(int(year), 1, 1) + timedelta(int(doy) - 1,
                                                          hours=int(hours),
-                                                         minutes=int(mins))   
+                                                         minutes=int(mins))
 
         self.station = station
         self.datfile_path = datfile_path
@@ -159,7 +159,7 @@ the dat file is now contained in a pandas dataframe at dat.rawfile'''
         return new
 
     def clear_rows_already_in_database(self, inplace=True):
-        '''Clears the rawfile dataframe of any arrayid and datetimes 
+        '''Clears the rawfile dataframe of any arrayid and datetimes
 that match one in the database'''
 
         alreadyup = engine.execute("""SELECT arrayid,datetime
@@ -197,7 +197,7 @@ that match one in the database'''
         """ Here we are checking to make sure that the first row in the dat file
          is exactly is one interval after the last row in the database for a
          specific data array id.  The function returns true if they are timed
-         correctly and if they are incorrect it returns the difference in 
+         correctly and if they are incorrect it returns the difference in
          minutes, and the two times"""
 
         intervalminutes = self.data_arrays.loc[arrayid].intervalminutes
@@ -219,7 +219,7 @@ that match one in the database'''
 
     def upload2db(self, insert_despite_interval_issue=True):
         '''Uploads the rawfile to the database, it checks to remove duplicate
-        columns, and checks the intervals, if the intervals show there are hours 
+        columns, and checks the intervals, if the intervals show there are hours
         missing it still uploads but logs the upload in the log file'''
         # REMOVING DATA FROM THE FILE THAT ALREADY EXISTS IN THE DATABASE
         upload = self.clear_rows_already_in_database(inplace=True)
@@ -327,7 +327,7 @@ if __name__ == '__main__':
         if station in ('SASP','SBSP'):
             dat.add_albedo()
         dat.upload2db()                     # uploading the file
-        
+
     # LOOPING INDEFINATELY
     while True:
         # WAITING UNTIL THE TOP OF THE HOUR, THEN WAITING ANOTHER 12 MIN
