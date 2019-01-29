@@ -1,47 +1,11 @@
 import pandas as pd
 from os.path import join, splitext
 from os import getenv
-from sqlalchemy import create_engine
 from datetime import datetime as dtm, timedelta
 import re
 import numpy as np
 import time
-
-#############################################################################
-#############################################################################
-# THIS IS THE STUFF YOU WILL NEED TO CHANGE!
-#############################################################################
-# CREATING THE CONNECTION TO THE DATABASE FOR MYSQL WILL LOOK MORE LIKE THIS:
-#engine = create_engine('mysql+mysqldb://csasdb:Csas1040!:192.186.235.162/snowstudies?charset=utf8mb4&binary_prefix=true' )# NOTE WE NEED TO PUT YOUR PASSWORD IN AN ENVIRONMENT VARIABLE
-engine = create_engine('mysql+mysqldb://csasdb:%s@192.186.235.162:3306/snowstudies' % getenv(
-	                   'CSAS_DB_PASSWORD'))
-
-# DIRECTORY HOLDING THE STATION INFO DATA FILES 
-#stationinfodir = '/Users/airsci/Documents/CSASPlotter/stationinfo'
-stationinfodir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter\\stationinfo'
-
-
-# DIRECTORY HOLD THE DAT FILES
-datfiledir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter'
-
-# DIRECTORY HOLDING THE LOG FILES THAT RECORD EACH UPLOAD AND ITS SUCCESS OR FAILURE
-upload_logfile_dir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter'
-
-
-#############################################################################
-#############################################################################
-# THIS STUFF YOU MIGHT NEED TO CHANGE BUT I THINK YOU ARE OK
-stationxlsfile = join(stationinfodir, 'Field_Lists.xlsx')
-
-tablenames = dict(SASP='SwampAngel', SBSP='SenatorBeck',
-                  SBSG='SenatorBeckStream', PTSP='Putney')
-
-albedo_info = {'fieldname': 'albedo', 'pyup_field_name': 'pyup_unfilt_w',
-               'pydwn_field_name': 'pydwn_unfilt_w', "Data_Type": float,
-               'Description': 'Albedo', 'Common Name': 'Albedo',
-               'Data Check': '0,1'}
-#############################################################################
-#############################################################################
+from config import *
 
 def hold_til_(hold_til='min', accuracy_secs=1):
     """This will stall until you are at an even time.  For exmaple:
@@ -87,9 +51,9 @@ def hold_til_(hold_til='min', accuracy_secs=1):
 
 
 def get_header_info(station):
-    '''This grabs the header info for a specific station and 
+    '''This grabs the header info for a specific station and
     returns it as a pandas dataframe'''
-    
+
     fields = pd.read_excel(stationxlsfile, station,
                            skiprows=0, header=1, index_col=1)
     fields.index = fields.index.str.lower()
@@ -132,7 +96,7 @@ the dat file is now contained in a pandas dataframe at dat.rawfile'''
             _, hours, mins, _ = (re.split('(\d?\d)(\d\d)', time))
             return dtm(int(year), 1, 1) + timedelta(int(doy) - 1,
                                                          hours=int(hours),
-                                                         minutes=int(mins))   
+                                                         minutes=int(mins))
 
         self.station = station
         self.datfile_path = datfile_path
@@ -162,7 +126,7 @@ the dat file is now contained in a pandas dataframe at dat.rawfile'''
         return new
 
     def clear_rows_already_in_database(self, inplace=True):
-        '''Clears the rawfile dataframe of any arrayid and datetimes 
+        '''Clears the rawfile dataframe of any arrayid and datetimes
 that match one in the database'''
         done=False
         while not done:
@@ -203,13 +167,13 @@ that match one in the database'''
            self.rawfile.loc[:,albedo_info['pydwn_field_name']] /   \
            self.rawfile.loc[:,albedo_info['pyup_field_name']]
         infs = self.rawfile[albedo_info['fieldname']].isin([np.inf,-np.inf])
-        self.rawfile.loc[infs, albedo_info['fieldname']] = np.nan 
+        self.rawfile.loc[infs, albedo_info['fieldname']] = np.nan
 
     def check_dat_interval_after_db(self, arrayid):
         """ Here we are checking to make sure that the first row in the dat file
          is exactly is one interval after the last row in the database for a
          specific data array id.  The function returns true if they are timed
-         correctly and if they are incorrect it returns the difference in 
+         correctly and if they are incorrect it returns the difference in
          minutes, and the two times"""
 
         intervalminutes = self.data_arrays.loc[arrayid].intervalminutes
@@ -229,12 +193,12 @@ that match one in the database'''
         else:
             return diff_minutes, first_date_in_dat, last_date_inDB
 
-    def upload2db(self, insert_despite_interval_issue=True, 
+    def upload2db(self, insert_despite_interval_issue=True,
                   catch_upload=True):
         '''Uploads the rawfile to the database, it checks to remove duplicate
-        rows, and checks the intervals, if the intervals show there are hours 
+        rows, and checks the intervals, if the intervals show there are hours
         missing it still uploads but logs the upload in the log file'''
-        
+
         # REMOVING DATA FROM THE FILE THAT ALREADY EXISTS IN THE DATABASE
         upload = self.clear_rows_already_in_database(inplace=True)
         uploadf = upload.rawfile
@@ -334,10 +298,10 @@ if __name__ == '__main__':
     #########################################################################
 
     # THIS IS THE LIST OF FILES AND STATIONS TO BE UPLOADED
-    stationlist = [['SASP', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\SASP.dat'],
-                   ['SBSG', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\SBSG.dat'],
-                   ['SBSP', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\SBSP.dat'],
-                   ['PTSP', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\PTSP.dat']]
+    stationlist = [['SASP', datfiledir + 'SASP.dat'],
+                   ['SBSG', datfiledir + 'SBSG.dat'],
+                   ['SBSP', datfiledir + 'SBSP.dat'],
+                   ['PTSP', datfiledir + 'PTSP.dat']]
 
     # UPLOADING THINGS INITIALLY WHEN WE START THE SCRIPT
     # LOOPING THROUGH EASH DAT FILE AND UPLOADING TO THE DATABASE
