@@ -1,40 +1,43 @@
 import pandas as pd
 from os.path import join, splitext
 from os import getenv
-import sys
 from sqlalchemy import create_engine
 from datetime import datetime as dtm, timedelta
 import re
 import numpy as np
+import time
 
 #############################################################################
 #############################################################################
 # THIS IS THE STUFF YOU WILL NEED TO CHANGE!
 #############################################################################
 # CREATING THE CONNECTION TO THE DATABASE FOR MYSQL WILL LOOK MORE LIKE THIS:
-# engine = create_engine('mysql://jeff:%s@ip_address_of_database/databasename' % getenv('CSAS_DB_PASSWORD'))   # NOTE WE NEED TO PUT YOUR PASSWORD IN AN ENVIRONMENT VARIABLE
-engine = create_engine('postgresql://postgres:%s@localhost:5432/csas' % getenv(
-                       'CSAS_DB_PASSWORD'))
+#engine = create_engine('mysql+mysqldb://csasdb:Csas1040!:192.186.235.162/snowstudies?charset=utf8mb4&binary_prefix=true' )# NOTE WE NEED TO PUT YOUR PASSWORD IN AN ENVIRONMENT VARIABLE
+engine = create_engine('mysql+mysqldb://csasdb:%s@192.186.235.162:3306/snowstudies' % getenv(
+	                   'CSAS_DB_PASSWORD'))
 
-# DIRECTORY HOLDING THE STATION INFO DATA FILES
-stationinfodir = '/Users/airsci/Documents/CSASPlotter/stationinfo'
+# DIRECTORY HOLDING THE STATION INFO DATA FILES 
+#stationinfodir = '/Users/airsci/Documents/CSASPlotter/stationinfo'
+stationinfodir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter\\stationinfo'
+
 
 # DIRECTORY HOLD THE DAT FILES
-datfiledir = '/Users/airsci/Documents/CSASPlotter'
+datfiledir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter'
 
 # DIRECTORY HOLDING THE LOG FILES THAT RECORD EACH UPLOAD AND ITS SUCCESS OR FAILURE
-upload_logfile_dir = '/Users/airsci/Documents/CSASPlotter'
+upload_logfile_dir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter'
+
 
 #############################################################################
 #############################################################################
 # THIS STUFF YOU MIGHT NEED TO CHANGE BUT I THINK YOU ARE OK
 stationxlsfile = join(stationinfodir, 'Field_Lists.xlsx')
 
-tablenames = dict(SASP='swampangel', SBSP='senatorbeck',
-                  SBSG='sentorbeckstream', PTSP='putney')
+tablenames = dict(SASP='SwampAngel', SBSP='SenatorBeck',
+                  SBSG='SenatorBeckStream', PTSP='Putney')
 
 albedo_info = {'fieldname': 'albedo', 'pyup_field_name': 'pyup_unfilt_w',
-               'pydown_field_name': 'pydwn_unfilt_w', "Data_Type": float,
+               'pydwn_field_name': 'pydwn_unfilt_w', "Data_Type": float,
                'Description': 'Albedo', 'Common Name': 'Albedo',
                'Data Check': '0,1'}
 #############################################################################
@@ -84,9 +87,9 @@ def hold_til_(hold_til='min', accuracy_secs=1):
 
 
 def get_header_info(station):
-    '''This grabs the header info for a specific station and
+    '''This grabs the header info for a specific station and 
     returns it as a pandas dataframe'''
-
+    
     fields = pd.read_excel(stationxlsfile, station,
                            skiprows=0, header=1, index_col=1)
     fields.index = fields.index.str.lower()
@@ -129,14 +132,14 @@ the dat file is now contained in a pandas dataframe at dat.rawfile'''
             _, hours, mins, _ = (re.split('(\d?\d)(\d\d)', time))
             return dtm(int(year), 1, 1) + timedelta(int(doy) - 1,
                                                          hours=int(hours),
-                                                         minutes=int(mins))
+                                                         minutes=int(mins))   
 
         self.station = station
         self.datfile_path = datfile_path
         self.table = self.tablenames[station]
 
         self.uploadlogfile = join(upload_logfile_dir,
-                                  '%s.upload_log' % splitext(self.datfile_path)[0])
+                                  "%s_upload_log.txt" % self.station)
 
         self.header = get_header_info(station)
         self.data_arrays = get_data_arrays(station)
@@ -159,11 +162,18 @@ the dat file is now contained in a pandas dataframe at dat.rawfile'''
         return new
 
     def clear_rows_already_in_database(self, inplace=True):
-        '''Clears the rawfile dataframe of any arrayid and datetimes
+        '''Clears the rawfile dataframe of any arrayid and datetimes 
 that match one in the database'''
-
-        alreadyup = engine.execute("""SELECT arrayid,datetime
+        done=False
+        while not done:
+            try:
+                alreadyup = engine.execute("""SELECT arrayid,datetime
                             FROM %s;""" % self.table).fetchall()
+                done=True
+            except:
+                done=False
+                print('Connection Failed at %s' % dtm.now())
+                time.sleep(5)
 
         df = self.rawfile
         df = df.reset_index().reset_index().set_index(['arrayid', 'datetime'])
@@ -190,14 +200,16 @@ that match one in the database'''
     def add_albedo(self):
         '''Adds albedo to the rawfile'''
         self.rawfile[albedo_info['fieldname']] = \
-           self.rawfile.loc[albedo_info[pyup_field_name]] /   \
-           self.rawfile.loc[albedo_info[pydown_field_name]]
+           self.rawfile.loc[:,albedo_info['pydwn_field_name']] /   \
+           self.rawfile.loc[:,albedo_info['pyup_field_name']]
+        infs = self.rawfile[albedo_info['fieldname']].isin([np.inf,-np.inf])
+        self.rawfile.loc[infs, albedo_info['fieldname']] = np.nan 
 
     def check_dat_interval_after_db(self, arrayid):
         """ Here we are checking to make sure that the first row in the dat file
          is exactly is one interval after the last row in the database for a
          specific data array id.  The function returns true if they are timed
-         correctly and if they are incorrect it returns the difference in
+         correctly and if they are incorrect it returns the difference in 
          minutes, and the two times"""
 
         intervalminutes = self.data_arrays.loc[arrayid].intervalminutes
@@ -217,10 +229,12 @@ that match one in the database'''
         else:
             return diff_minutes, first_date_in_dat, last_date_inDB
 
-    def upload2db(self, insert_despite_interval_issue=True):
+    def upload2db(self, insert_despite_interval_issue=True, 
+                  catch_upload=True):
         '''Uploads the rawfile to the database, it checks to remove duplicate
-        columns, and checks the intervals, if the intervals show there are hours
+        rows, and checks the intervals, if the intervals show there are hours 
         missing it still uploads but logs the upload in the log file'''
+        
         # REMOVING DATA FROM THE FILE THAT ALREADY EXISTS IN THE DATABASE
         upload = self.clear_rows_already_in_database(inplace=True)
         uploadf = upload.rawfile
@@ -241,13 +255,18 @@ that match one in the database'''
                 else:
                     upload.log_break_in_records(arrayid, good[0])
 
-        try:
-            uploadf.reset_index().to_sql(self.table, engine,
+        if catch_upload:
+            try:
+                uploadf.reset_index().to_sql(self.table, engine,
                                          'public', 'append',
                                          index=False)
-        except Exception:
-            upload.log_upload_failed()
-            return
+            except Exception:
+                upload.log_upload_failed()
+                return
+        else:
+            uploadf.reset_index().to_sql(self.table, engine,
+                                         None, 'append',
+                                         index=False)
 
         upload.log_successful()
 
@@ -291,19 +310,19 @@ def create_table_sql(station, tablename):
 
     print('CREATE TABLE %s (' % tablename)
     print('%s_ID SERIAL,' % tablename)
-    print('datetime timestamp,')
-    print('albedo Float,')
+    print('datetime datetime,')
+    print('albedo FLOAT,')
     for name, dtype in df.Data_Type[:-1].iteritems():
         if dtype == 'Float':
-            dtype = 'real'
+            dtype = 'FLOAT'
         elif dtype == 'Integer':
-            dtype = 'integer'
+            dtype = 'INT(11)'
         print("%s %s," % (name, dtype))
     lastvalue = df.Data_Type.iloc[-1]
     if lastvalue == 'Float':
-        lastvalue = 'real'
+        lastvalue = 'FLOAT'
     elif lastvalue == 'Integer':
-        lastvalue = 'integer'
+        lastvalue = 'INT(11)'
     print("%s %s);" % (df.index[-1], lastvalue))
 
 
@@ -315,10 +334,10 @@ if __name__ == '__main__':
     #########################################################################
 
     # THIS IS THE LIST OF FILES AND STATIONS TO BE UPLOADED
-    stationlist = [['SASP',join(datfiledir, 'SASP-Met Station.dat')],
-                   ['SBSG', join(datfiledir, 'SASG-Stream Gage.dat')],
-                   ['SBSP', join(datfiledir, 'SBSP-Met Station.dat')],
-                   ['PTSP', join(datfiledir, 'PTSP-Met Station.dat')]]
+    stationlist = [['SASP', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\SASP.dat'],
+                   ['SBSG', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\SBSG.dat'],
+                   ['SBSP', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\SBSP.dat'],
+                   ['PTSP', 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\PTSP.dat']]
 
     # UPLOADING THINGS INITIALLY WHEN WE START THE SCRIPT
     # LOOPING THROUGH EASH DAT FILE AND UPLOADING TO THE DATABASE
@@ -326,13 +345,13 @@ if __name__ == '__main__':
         dat = DatFile(station, filepath)    # opening the file
         if station in ('SASP','SBSP'):
             dat.add_albedo()
-        dat.upload2db()                     # uploading the file
+        dat.upload2db(catch_upload=False)                     # uploading the file
 
     # LOOPING INDEFINATELY
     while True:
         # WAITING UNTIL THE TOP OF THE HOUR, THEN WAITING ANOTHER 12 MIN
         hold_til_('hour')
-        sleep(5)
+        time.sleep(5)
         hold_til_('12 min')
 
         # LOOPING THROUGH EASH DAT FILE AND UPLOADING TO THE DATABASE
@@ -340,4 +359,4 @@ if __name__ == '__main__':
             dat = DatFile(station, filepath)    # opening the file
             if station in ('SASP','SBSP'):
                 dat.add_albedo()
-            dat.upload2db()                     # uploading the file
+            dat.upload2db(catch_upload=False)                     # uploading the file
