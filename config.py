@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
-
+from os import getenv
+from os.path import join
 #############################################################################
 #############################################################################
 # THIS IS THE STUFF YOU WILL NEED TO CHANGE!
@@ -10,15 +11,16 @@ engine = create_engine('mysql+mysqldb://csasdb:%s@192.186.235.162:3306/snowstudi
 	                   'CSAS_DB_PASSWORD'))
 
 # DIRECTORY HOLDING THE STATION INFO DATA FILES
-#stationinfodir = '/Users/airsci/Documents/CSASPlotter/stationinfo'
+# stationinfodir = '/Users/airsci/Documents/CSASPlotter/stationinfo'
 stationinfodir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter\\stationinfo'
 
 # DIRECTORY HOLD THE DAT FILES
+# datfiledir = '/Users/airsci/Documents/CSASPlotter/'
 datfiledir = 'C:\\Users\\Kimberly\\Dropbox\\Campbellsci\LoggerNet\\'
 
 # DIRECTORY HOLDING THE LOG FILES THAT RECORD EACH UPLOAD AND ITS SUCCESS OR FAILURE
 upload_logfile_dir = 'C:\\Users\\Kimberly\\Documents\\python-data-transfer\\CSASPlotter'
-
+# upload_logfile_dir = '/Users/airsci/Documents/CSASPlotter/'
 #############################################################################
 #############################################################################
 # THIS STUFF YOU MIGHT NEED TO CHANGE BUT I THINK YOU ARE OK
