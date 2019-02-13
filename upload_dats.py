@@ -1,11 +1,11 @@
 import pandas as pd
 from os.path import join, splitext
-from os import getenv
 from datetime import datetime as dtm, timedelta
 import re
 import numpy as np
 import time
 from config import *
+from data_access import *
 
 def hold_til_(hold_til='min', accuracy_secs=1):
     """This will stall until you are at an even time.  For exmaple:
@@ -48,37 +48,6 @@ def hold_til_(hold_til='min', accuracy_secs=1):
                   now.hour % interval != 0:
                 now = dtm.now()
                 time.sleep(accuracy_secs)
-
-
-def get_header_info(station):
-    '''This grabs the header info for a specific station and
-    returns it as a pandas dataframe'''
-
-    fields = pd.read_excel(stationxlsfile, station,
-                           skiprows=0, header=1, index_col=1)
-    fields.index = fields.index.str.lower()
-    return fields
-
-
-def get_data_arrays(station):
-    '''Reads the text files in stationinfo directory and returns a dataframe of
-    data array info including the id, the label, the interval in minutes, and
-    a second label without spaces and no number to start the label
-    '''
-    filename = "%s_data_arrays.txt" % station
-    filepath = join(stationinfodir, filename)
-
-    data_arrs = pd.read_csv(filepath,index_col='ID')
-    return data_arrs
-
-
-
-
-def get_last_date(table, arrayid):
-    sql = "SELECT MAX(datetime) FROM %s WHERE arrayid=%i" % (table, arrayid)
-    out = engine.execute(sql).fetchall()
-    return out
-
 
 class DatFile(object):
     tablenames = tablenames
