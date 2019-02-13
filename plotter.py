@@ -18,7 +18,16 @@ from copy import copy
 import time
 import sys
 import argparse
+import codecs
 
+## STUFF YOU MIGHT WANT TO CHANGE:
+legend_font_size = '10pt'
+legend_location= 'top_left'
+plot_width = 800
+plot_height = 300
+
+
+# PARSING COMMAND LINE ARGUEMENTS
 parser = argparse.ArgumentParser()
 parser.add_argument("output",
                     help='the full path to the outputed html file',
@@ -68,8 +77,14 @@ colorslist = {
 'SASP':'#984ea3'}
 
 # READING THE TEMPLATE JSON FILE
-with open(jsonfile,'r') as f:
-    template = json.load(f)
+try:
+    with open(jsonfile,'r') as f:
+        template = json.load(f)
+except Exception:
+    with codecs.open(jsonfile, 'r', 'utf-8-sig') as f:
+        template = json.load(f)
+
+
 
 #ORGANIZING JSON TEMPLATE DATA
 querydata = []
@@ -90,7 +105,7 @@ source = ColumnDataSource(df)
 
 # SETTING VARIOUS OPTIONS AND XLIMITS FOR THE PLOTTERS
 xrange = Range1d(bounds=[start,end],start=start_initial, end=end)
-options = {'width':1000,'height':180,'tools':'xwheel_zoom,xpan,crosshair',
+options = {'width':plot_width,'height':plot_height,'tools':'xwheel_zoom,xpan,crosshair',
            'x_axis_type':"datetime",'x_range':xrange, 'x_axis_type':'datetime'}
 
 # IF ONLY ONE PAGE OF DATA IS LISTED IN THE JSON THEN TABS WILL NOT BE CREATED
@@ -103,14 +118,13 @@ for tab in template:
     plots = []
     # LOOPING THROUGH EACH OF THE PLOTS
     for plot in tab['plots']:
-        # print(plot['axes_title'])
+        # print(plot['axes_title'], plot['yrange'])
         yrange = Range1d(start=plot['yrange'][0],   # SETTING THE Y LIMITS FOR THE AXES
                          end=plot['yrange'][1])
 
         f = figure(title=plot['axes_title'],   # MAKING THE FIGURE
                    y_range=yrange,
                    **options)
-        f.legend.location = "top_left"
 
         # LOOPING THROUGH EACH LINE FOR THIS AXES AND PLOTTING IT
         for line in plot['lines']:
@@ -123,17 +137,20 @@ for tab in template:
             label = station if not 'label' in line else line['label']
 
             fieldname = "%s_%s" % (station, line['field'])
-            #print('    ', line['field'], fieldname)
+            # print('    ', line['field'], fieldname)
+            # print('        ',color,label)
 
             # IF ALL THE DATA IS MISSING DON'T PLOT THIS LINE
             if df[fieldname].isnull().all(): continue
 
             # PLOTTING THE LINE
             f.line('datetime', fieldname,
-                   legend=station,
+                   legend=label,
                    source=source,
-                   color=colorslist[station])
+                   color=color)
 
+        f.legend.location = legend_location
+        f.legend.label_text_font_size = legend_font_size
         plots.append(f)    # APPENDING THIS PLOT TO A LIST OF PLOTS
 
     # STACKING ALL OF THESE PLOTS INTO A SINGLE COLUMN OF PLOTS
