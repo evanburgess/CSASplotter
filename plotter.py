@@ -1,7 +1,9 @@
+from pdb import set_trace
 import pandas as pd
 from sqlalchemy import create_engine
 from datetime import datetime as dtm, timedelta
-from upload_dats import get_data_arrays, get_header_info, engine, tablenames
+from data_access import get_data_arrays, get_header_info
+from config import *
 from bokeh.plotting import figure, show, output_file, save
 from bokeh.embed import file_html
 from bokeh.models.widgets import Panel, Tabs
@@ -12,13 +14,16 @@ from config import *
 from data_access import *
 import json
 from bokeh.models.sources import ColumnDataSource
-from os import remove
+from os import remove, getenv
 from os.path import exists as fileexists, dirname
 from copy import copy
 import time
 import sys
 import argparse
 import codecs
+import paramiko
+from sftp import *
+
 
 ## STUFF YOU MIGHT WANT TO CHANGE:
 legend_font_size = '10pt'
@@ -45,12 +50,18 @@ parser.add_argument("tdelta_days_showing",
                     'page load.  The user will still be able to zoom out or ' +
                     ' pan back to tdelta_days',
                     type=int)
+parser.add_argument('--sftp_to',dest='remotepath',
+                    help='If you would like to sftp this file over to the '+ 
+                    'GoDaddy sever then use this',
+                    default=False,
+                    type=str)
 
 args = parser.parse_args()
 output = args.output
 jsonfile = args.jsonfile
 tdelta_days = args.tdelta_days
 tdelta_days_showing = args.tdelta_days_showing
+remotepath = args.remotepath
 
 # SANITY CHECKS
 if not fileexists(jsonfile):
@@ -58,6 +69,9 @@ if not fileexists(jsonfile):
 
 if not fileexists(dirname(output)):
     raise RuntimeError('Invalid path for %s' % output)
+
+if fileexists(output):
+    remove(output)
 
 if tdelta_days < tdelta_days_showing:
     raise RuntimeError('The number of days of data is less than the number' +
@@ -104,7 +118,7 @@ df = get_data(querydata,start,end)
 source = ColumnDataSource(df)
 
 # SETTING VARIOUS OPTIONS AND XLIMITS FOR THE PLOTTERS
-xrange = Range1d(bounds=[start,end],start=start_initial, end=end)
+xrange = Range1d(start=start_initial, end=end)# bounds=[start,end],
 options = {'width':plot_width,'height':plot_height,'tools':'xwheel_zoom,xpan,crosshair',
            'x_axis_type':"datetime",'x_range':xrange, 'x_axis_type':'datetime'}
 
@@ -136,7 +150,7 @@ for tab in template:
             color = colorslist[station] if not 'color' in line else line['color']
             label = station if not 'label' in line else line['label']
 
-            fieldname = "%s_%s" % (station, line['field'])
+            fieldname = "%s_%s" % (station.lower(), line['field'])
             # print('    ', line['field'], fieldname)
             # print('        ',color,label)
 
@@ -163,8 +177,10 @@ if should_i_make_tabs:
     all = Tabs(tabs=tabs)
 # DONE!!
 save(all)
-# if fileexists(output):
-#     remove(output)
+#show(all)
+print('remotepath',remotepath)
+if remotepath:
+    sftp = SftpClient('166.62.41.73',22,'csasweb','Csnow2030#')
+    sftp.upload(output, remotepath)
+    sftp.close()
 
-# file_html(all, CDN, output)
-# show(all)

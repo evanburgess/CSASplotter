@@ -242,20 +242,20 @@ def create_table_sql(station, tablename):
     df = get_header_info(station)
 
     print('CREATE TABLE %s (' % tablename)
-    print('%s_ID SERIAL,' % tablename)
-    print('datetime datetime,')
-    print('albedo FLOAT,')
+    print('%s_ID SERIAL PRIMARY KEY,' % tablename)
+    print('datetime timestamp,')
+    print('albedo real,')
     for name, dtype in df.Data_Type[:-1].iteritems():
-        if dtype == 'Float':
-            dtype = 'FLOAT'
-        elif dtype == 'Integer':
-            dtype = 'INT(11)'
+        if 'Float' in dtype:
+            dtype = 'real'
+        elif 'Integer' in dtype:
+            dtype = 'integer'
         print("%s %s," % (name, dtype))
     lastvalue = df.Data_Type.iloc[-1]
-    if lastvalue == 'Float':
-        lastvalue = 'FLOAT'
-    elif lastvalue == 'Integer':
-        lastvalue = 'INT(11)'
+    if 'Float' in lastvalue:
+        lastvalue = 'real'
+    elif 'Integer' in lastvalue:
+        lastvalue = 'integer'
     print("%s %s);" % (df.index[-1], lastvalue))
 
 
