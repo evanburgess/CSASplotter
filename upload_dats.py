@@ -268,7 +268,6 @@ if __name__ == '__main__':
             dat.add_albedo()
         dat.upload2db(catch_upload=False)                     # uploading the file
 
-    raise
     # LOOPING INDEFINATELY
     while True:
         # WAITING UNTIL THE TOP OF THE HOUR, THEN WAITING ANOTHER 12 MIN
