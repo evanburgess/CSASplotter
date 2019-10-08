@@ -1,3 +1,4 @@
+from pdb import set_trace
 import pandas as pd
 from os.path import join, splitext
 from datetime import datetime as dtm, timedelta
@@ -108,26 +109,12 @@ that match one in the database'''
                 print('Connection Failed at %s' % dtm.now())
                 time.sleep(5)
 
-        df = self.rawfile
-        df = df.reset_index().reset_index().set_index(['arrayid', 'datetime'])
-
-        removethese = []
-        for arrayid, dt in alreadyup:
-            try:
-                rm = df.loc[arrayid, dt.replace(tzinfo=None)]['index']
-                removethese.append(rm)
-            except KeyError:
-                pass
-        rmts = df['index'].isin(np.array(removethese).astype(int))
-
-
         if inplace:
-            self.rawfile = self.rawfile[~rmts.values]
+            self.rawfile = self.rawfile[~self.rawfile.index.isin(alreadyup)]
             return self
         else:
             new = self.copy()
-            new.rawfile = self.rawfile[~rmts.values]
-
+            new.rawfile = self.rawfile[~self.rawfile.index.isin(alreadyup)]
             return new
 
     def add_albedo(self):
@@ -267,19 +254,21 @@ if __name__ == '__main__':
     #########################################################################
 
     # THIS IS THE LIST OF FILES AND STATIONS TO BE UPLOADED
-    stationlist = [['SASP', datfiledir + 'SASP.dat'],
+    stationlist = [['SASP', datfiledir + 'SASP-Oct2_2019.dat'],
                    ['SBSG', datfiledir + 'SBSG.dat'],
-                   ['SBSP', datfiledir + 'SBSP.dat'],
-                   ['PTSP', datfiledir + 'PTSP.dat']]
+                   ['SBSP', datfiledir + 'SBSP-Oct2_2019.dat'],
+                   ['PTSP', datfiledir + 'PTSP-Oct2_2019.dat']]
 
     # UPLOADING THINGS INITIALLY WHEN WE START THE SCRIPT
     # LOOPING THROUGH EASH DAT FILE AND UPLOADING TO THE DATABASE
     for station,filepath in stationlist:
+        print(station)
         dat = DatFile(station, filepath)    # opening the file
         if station in ('SASP','SBSP'):
             dat.add_albedo()
         dat.upload2db(catch_upload=False)                     # uploading the file
 
+    raise
     # LOOPING INDEFINATELY
     while True:
         # WAITING UNTIL THE TOP OF THE HOUR, THEN WAITING ANOTHER 12 MIN
