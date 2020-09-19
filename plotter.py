@@ -33,9 +33,21 @@ plot_height = 300
 
 
 # PARSING COMMAND LINE ARGUEMENTS
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="""
+This script needs to be executed on a regular basis to create the plots and it can also upload the plot 
+to a remote server for you.  See the help below for how to execute this file on the commandline. Once you
+get this working on your machine of choice, update the shell script and execute the shell script with cron.
+\n
+As an example:
+\n
+python plotter.py /fullpath/to/output/htmlfile/on/local/machine /fullpath/to/json/template/file 40 7 --sftp_to 124.234.12.44 --remote_username matt --remote_password mypassword --remote_filepath /fullpath/to/outputhtml/on/remote/server
+
+""")
 parser.add_argument("output",
-                    help='the full path to the outputed html file',
+                    help='the full path to the outputed html file on the local machine.  If you ' +
+		    'ultimately want this on a different server still specify a location for this ' +
+                    'file.  It will be created locally at that location and THEN sftped to your ' + 
+                    'specified location',
                     type=str)
 parser.add_argument("jsonfile",
                     help='the full path to the json template file',
@@ -50,18 +62,36 @@ parser.add_argument("tdelta_days_showing",
                     'page load.  The user will still be able to zoom out or ' +
                     ' pan back to tdelta_days',
                     type=int)
-parser.add_argument('--sftp_to',dest='remotepath',
-                    help='If you would like to sftp this file over to the '+ 
-                    'GoDaddy sever then use this',
+parser.add_argument('--sftp_to',dest='remote_ip',
+                    help='If you would like to sftp this file over to a different '+ 
+                    'sever then enter the ip address here',
                     default=False,
                     type=str)
+parser.add_argument('--remote_username',
+                    help='If you would like to sftp this file over to a different '+ 
+                    'sever then enter the username to login to that server here',
+                    default=False,
+                    type=str)
+parser.add_argument('--remote_password',
+                    help='If you would like to sftp this file over to a different '+ 
+                    'sever then enter the password to login to that server here',
+                    default=False,
+                    type=str)
+parser.add_argument('--remote_filepath',
+                    help='If you would like to sftp this file over to a different ' +
+                    'sever then enter the full file path describing where to save ' +
+		    'the file on the other server',
+                    default=False,
+                    type=str)
+
+# sftp = SftpClient(remote_ip,22,remote_username,remote_password)
 
 args = parser.parse_args()
 output = args.output
 jsonfile = args.jsonfile
 tdelta_days = args.tdelta_days
 tdelta_days_showing = args.tdelta_days_showing
-remotepath = args.remotepath
+
 
 # SANITY CHECKS
 if not fileexists(jsonfile):
@@ -178,9 +208,8 @@ if should_i_make_tabs:
 # DONE!!
 save(all)
 #show(all)
-print('remotepath',remotepath)
-if remotepath:
-    sftp = SftpClient('166.62.41.73',22,'csasweb','Csnow2030#')
-    sftp.upload(output, remotepath)
+if args.remote_ip:
+    sftp = SftpClient(args.remote_ip,22,args.remote_username,args.remote_password)
+    sftp.upload(output, args.remote_filepath)
     sftp.close()
 
